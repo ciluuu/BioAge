@@ -1,4 +1,5 @@
 import streamlit as st
+import math
 
 with st.form("biomarqueurs"):
     age = st.number_input("Age", min_value=0, max_value=120, value=None)
@@ -31,10 +32,57 @@ if submit_button:
             "Phosphatases alcalines (PAL)": pal,
             "Leucocytes": leucocytes
         }
-        renseignes = {nom: valeur for nom, valeur in biomarqueurs.items() if valeur is not None}
-        for nom, valeur in renseignes.items():
+        for nom, valeur in biomarqueurs.items():
             if valeur is None:
                 st.error(f"Veuillez renseigner la valeur pour {nom}.")
                 break
             
         st.success("Formulaire envoyé avec succès")
+        
+def calculer_phenoage (age, albumine, creatinine, glucose, crp, lymphocytes, vgm, idr, pal, leucocytes):
+    # coefficients pour chaque biomarqueur
+    coefficients = {
+        albumine: -0.0336,
+        creatinine: 0.0095,
+        glucose: 0.1953,
+        crp: 0.0954,
+        lymphocytes: -0.0120,
+        vgm: 0.0268,
+        idr: 0.3306,
+        pal: 0.0019,
+        leucocytes: 0.0554,
+        age: 0.0804
+    }
+    xb = (-19.907 + 
+        coefficients[albumine] * albumine +
+        coefficients[creatinine] * creatinine +
+        coefficients[glucose] * glucose +
+        coefficients[crp] * math.log(crp) +
+        coefficients[lymphocytes] * lymphocytes +
+        coefficients[vgm] * vgm +
+        coefficients[idr] * idr +
+        coefficients[pal] * pal +
+        coefficients[leucocytes] * leucocytes +
+        coefficients[age] * age)
+    M = 1 - math.exp((-1.51714 * math.exp(xb)) / 0.0076927)
+    phenoage = 141.5 + (math.log(-0.00553 * math.log(1 - M)) / 0.09165)
+    return phenoage, M
+
+def tester_phenoage():
+    valeurs_test = {
+        "age": 40,
+        "albumine": 35.0,
+        "creatinine": 80.0,
+        "glucose": 5.5,
+        "crp": 5.0,
+        "lymphocytes": 1.5,
+        "vgm": 90.0,
+        "idr": 15.0,
+        "pal": 100.0,
+        "leucocytes": 7.0
+    }
+    phenoage, M = calculer_phenoage(**valeurs_test)
+    print(f"Test PhenoAge avec valeurs : {valeurs_test}")
+    print(f"PhenoAge: {phenoage}, M: {M}")
+
+tester_phenoage()
