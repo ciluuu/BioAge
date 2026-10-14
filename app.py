@@ -5,7 +5,7 @@ from src.phenoage import calculer_phenoage
 from src.biomarqueurs import BIOMARQUEURS
 
 
-st.title("BioAge — Estimation de l'âge biologique")
+st.title("BioAge - Estimation de l'âge biologique")
 st.caption("Outil de prévention, pas un diagnostic médical.")
 
 # Formulaire
@@ -16,13 +16,32 @@ with st.form("formulaire"):
     saisies = {}
     for index, bio in enumerate(BIOMARQUEURS):
         colonne = col_gauche if index % 2 == 0 else col_droite
+        aides = []
+        if bio.get("plage_min") is not None and bio.get("plage_max") is not None:
+            aides.append(
+                f"Plage normale : {bio['plage_min']} - {bio['plage_max']} {bio['unite']}"
+            )
+        if bio.get("plage_min_femme") is not None and bio.get("plage_max_femme") is not None:
+                    aides.append(
+                        f"Plage normale pour les femmes : "
+                        f"{bio['plage_min_femme']} - {bio['plage_max_femme']} {bio['unite']}\n"
+                    )
+        if bio.get("plage_min_homme") is not None and bio.get("plage_max_homme") is not None:
+            aides.append(
+                f"Plage normale pour les hommes : "
+                f"{bio['plage_min_homme']} - {bio['plage_max_homme']} {bio['unite']}"
+            )
+
+        help_text = "\n".join(aides)
+
         saisies[bio["cle"]] = colonne.number_input(
             f"{bio['label']} ({bio['unite']})",
             min_value=float(bio["min"]),
-            max_value=float(bio["max"]),
             value=None,
-            placeholder=f"ex : {bio['exemple']}",
+            help=help_text if help_text else None,
+            placeholder=f"ex : {bio['exemple']}"
         )
+        
 
     envoye = st.form_submit_button(
         "Calculer mon âge biologique", type="primary", use_container_width=True
