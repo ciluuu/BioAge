@@ -1,4 +1,36 @@
-.venv/
+# Python
 __pycache__/
 *.pyc
+*.pyo
+*.pyd
+.venv/
+venv/
+*.egg-info/
+
+# Tests
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Streamlit
 .streamlit/secrets.toml
+
+# Données brutes et traitées (trop lourdes pour git)
+data/raw/*
+data/processed/*
+!data/raw/.gitkeep
+!data/processed/.gitkeep
+
+# Modèles entraînés (sauf la régression logistique, légère, utilisée par l'app)
+models/*
+!models/.gitkeep
+!models/logistique_age_biomarqueurs.pkl
+
+# IDE
+.vscode/
+.idea/
+*.swp
+.DS_Store
