@@ -1,6 +1,6 @@
 """Formule PhenoAge (Levine 2018) : convertit 9 biomarqueurs + l'âge en âge biologique."""
 import math
-
+from src.conversion import risque_vers_age_biologique
 
 def calculer_phenoage(age, albumine, creatinine, glucose, crp_mg_L,
                       lymphocytes_pct, vgm, idr, pal, leucocytes):
@@ -44,9 +44,8 @@ def calculer_phenoage(age, albumine, creatinine, glucose, crp_mg_L,
     )
 
     risque_10_ans = 1 - math.exp(-1.51714 * math.exp(score) / 0.0076927)
-    # Garde-fou : si risque atteint 0 ou 1 (valeurs extrêmes), log plante.
+    # Clamp pour cohérence du contrat (risque strictement dans ]0, 1[)
     EPSILON = 1e-10
     risque_10_ans = max(EPSILON, min(1 - EPSILON, risque_10_ans))
-    age_biologique = 141.50 + math.log(-0.00553 * math.log(1 - risque_10_ans)) / 0.09165
-
+    age_biologique = risque_vers_age_biologique(risque_10_ans)
     return age_biologique, risque_10_ans
