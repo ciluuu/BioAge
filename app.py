@@ -27,6 +27,13 @@ modele_choisi = st.radio(
 with st.form("formulaire"):
     age = st.number_input("Âge (années)", min_value=0, max_value=120, value=None)
 
+    sexe = st.radio(
+        "Sexe (optionnel)",
+        options=["Non précisé", "Femme", "Homme"],
+        horizontal=True,
+        help="Utilise par certains modeles. Si non precise, une valeur moyenne est utilisee.",
+    )
+
     col_gauche, col_droite = st.columns(2)
     saisies = {}
     for index, bio in enumerate(BIOMARQUEURS):
@@ -101,6 +108,14 @@ if envoye:
             import numpy as np
             from src.mlp import predire_avec_manquants
 
+            # Encodage du sexe : Femme=1, Homme=0, Non precise=0.5 (valeur moyenne)
+            if sexe == "Femme":
+                est_femme = 1.0
+            elif sexe == "Homme":
+                est_femme = 0.0
+            else:
+                est_femme = 0.5
+
             donnees_mlp = charger_modele_mlp()
             cles = ["albumine", "creatinine", "glucose", "crp",
                     "lymphocytes", "vgm", "idr", "pal", "leucocytes"]
@@ -110,7 +125,7 @@ if envoye:
                 else (saisies[cle] if saisies[cle] is not None else 0.0)
                 for cle in cles
             ]
-            valeurs = np.array([age, 0] + valeurs_biomarqueurs, dtype=np.float32)
+            valeurs = np.array([age, est_femme] + valeurs_biomarqueurs, dtype=np.float32)
             age_biologique, risque = predire_avec_manquants(donnees_mlp, valeurs, presents_9)
 
         nb_present = sum(1 for bio in BIOMARQUEURS if saisies[bio["cle"]] is not None)
