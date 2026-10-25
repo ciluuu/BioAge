@@ -34,3 +34,9 @@ models/*
 .idea/
 *.swp
 .DS_Store
+
+models/*
+!models/.gitkeep
+!models/logistique_age_biomarqueurs.pkl
+!models/mlp.pt
+!models/mlp.pt.stats.npz
