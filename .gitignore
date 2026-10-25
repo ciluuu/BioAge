@@ -24,19 +24,15 @@ data/processed/*
 !data/raw/.gitkeep
 !data/processed/.gitkeep
 
-# Modèles entraînés (sauf la régression logistique, légère, utilisée par l'app)
+# Modèles entraînés (sauf ceux utilisés par l'app)
 models/*
 !models/.gitkeep
 !models/logistique_age_biomarqueurs.pkl
+!models/mlp.pt
+!models/mlp.pt.stats.npz
 
 # IDE
 .vscode/
 .idea/
 *.swp
 .DS_Store
-
-models/*
-!models/.gitkeep
-!models/logistique_age_biomarqueurs.pkl
-!models/mlp.pt
-!models/mlp.pt.stats.npz
