@@ -4,6 +4,8 @@ import streamlit as st
 from src.biomarqueurs import BIOMARQUEURS
 from src.phenoage import calculer_phenoage
 from src.logistique import predire_logistique
+from src.mlp import charger_modele as charger_modele_mlp
+from src.mlp import predire_pour_une_personne as predire_mlp_personne
 
 
 st.title("BioAge - Estimation de l'âge biologique")
@@ -11,12 +13,16 @@ st.caption("Outil de prévention, pas un diagnostic médical.")
 
 modele_choisi = st.radio(
     "Modele d'estimation",
-    options=["PhenoAge (formule)", "Regression logistique (ML)"],
+    options=[
+        "PhenoAge (formule)",
+        "Regression logistique (ML)",
+        "MLP (deep learning)",
+    ],
     horizontal=True,
-    help="PhenoAge est le modele de reference de la litterature. "
-         "La regression logistique est entrainee sur NHANES III.",
+    help="PhenoAge : formule de reference. "
+         "Logistique : baseline ML. "
+         "MLP : deep learning, meilleure calibration.",
 )
-
 # Formulaire
 with st.form("formulaire"):
     age = st.number_input("Âge (années)", min_value=0, max_value=120, value=None)
@@ -61,10 +67,10 @@ if envoye:
 
     if age is None:
         st.error("Veuillez renseigner votre âge.")
-    elif manquants:
-        st.error("Valeurs manquantes : " + ", ".join(manquants))
+    elif manquants and not modele_choisi.startswith("MLP"):
+        st.error("Ce modele ne gere pas les biomarqueurs manquants : " + ", ".join(manquants))
+        st.info("Le MLP, lui, accepte les valeurs manquantes. Essayez-le.")
     else:
-        # Appel du modèle choisi (interface identique pour les deux)
         if modele_choisi.startswith("PhenoAge"):
             age_biologique, risque = calculer_phenoage(
                 age=age,
@@ -78,7 +84,7 @@ if envoye:
                 pal=saisies["pal"],
                 leucocytes=saisies["leucocytes"],
             )
-        else:
+        elif modele_choisi.startswith("Regression"):
             age_biologique, risque = predire_logistique(
                 age=age,
                 albumine=saisies["albumine"],
@@ -91,8 +97,25 @@ if envoye:
                 pal=saisies["pal"],
                 leucocytes=saisies["leucocytes"],
             )
+        else:  # MLP (avec gestion des manquants)
+            import numpy as np
+            from src.mlp import predire_avec_manquants
 
-        colonne_1, colonne_2, colonne_3 = st.columns(3)
+            donnees_mlp = charger_modele_mlp()
+            cles = ["albumine", "creatinine", "glucose", "crp",
+                    "lymphocytes", "vgm", "idr", "pal", "leucocytes"]
+            presents_9 = [saisies[cle] is not None for cle in cles]
+            valeurs_biomarqueurs = [
+                np.log1p(saisies[cle]) if cle == "crp" and saisies[cle] is not None
+                else (saisies[cle] if saisies[cle] is not None else 0.0)
+                for cle in cles
+            ]
+            valeurs = np.array([age, 0] + valeurs_biomarqueurs, dtype=np.float32)
+            age_biologique, risque = predire_avec_manquants(donnees_mlp, valeurs, presents_9)
+
+        nb_present = sum(1 for bio in BIOMARQUEURS if saisies[bio["cle"]] is not None)
+        colonne_1, colonne_2, colonne_3, colonne_4 = st.columns(4)
         colonne_1.metric("Âge biologique", f"{age_biologique:.1f} ans")
         colonne_2.metric("Écart avec l'âge réel", f"{age_biologique - age:+.1f} ans")
         colonne_3.metric("Risque de décès à 10 ans", f"{risque * 100:.1f} %")
+        colonne_4.metric("Biomarqueurs utilisés", f"{nb_present}/9")
