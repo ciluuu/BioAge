@@ -20,6 +20,10 @@ def predire_pour_une_personne_ft(modele, valeurs_11):
     df_entree = pd.DataFrame([valeurs_11], columns=colonnes)
     
     preds_df = modele.predict(df_entree)
-    risque = float(preds_df["1_probability"].iloc[0])
+    colonne_proba = next(
+        c for c in preds_df.columns
+        if c.endswith("_1_probability") or c == "1_probability"
+    )
+    risque = float(preds_df[colonne_proba].iloc[0])
     
     return risque_vers_age_biologique(risque), risque

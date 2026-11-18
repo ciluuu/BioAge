@@ -11,5 +11,5 @@ def charger_modele_tabpfn(chemin=CHEMIN_MODELE):
 
 def predire_pour_une_personne_tabpfn(modele, valeurs_11):
     X_entree = valeurs_11.reshape(1, -1)
-    risque = float(modele.predict_proba(X_entree)[:, 1])
+    risque = float(modele.predict_proba(X_entree)[0, 1])
     return risque_vers_age_biologique(risque), risque

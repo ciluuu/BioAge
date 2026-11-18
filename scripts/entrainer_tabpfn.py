@@ -42,11 +42,10 @@ def entrainer_et_evaluer(X_train, y_train, X_test, y_test):
     if len(X_train) > 5000:
         rng = np.random.default_rng(seed=42)
         indices = rng.choice(len(X_train), size=5000, replace=False)
-        X_train_sub, y_train_sub = X_train[indices], y_train[indices]
     else:
         X_train_sub, y_train_sub = X_train, y_train
         
-    modele = TabPFNClassifier(device="cpu", N_ensemble=32)
+    modele = TabPFNClassifier(device="cpu", ignore_pretraining_limits=True)
     modele.fit(X_train_sub, y_train_sub)
     
     probas = modele.predict_proba(X_test)[:, 1]

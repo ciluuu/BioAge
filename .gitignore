@@ -36,3 +36,9 @@ models/*
 .idea/
 *.swp
 .DS_Store
+
+# pytorch_tabular / lightning temporaires
+.lr_find_*.ckpt
+.pt_tmp/
+lightning_logs/
+saved_models/

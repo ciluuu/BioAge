@@ -52,7 +52,7 @@ def entrainer_et_evaluer(train_df, test_df):
     )
     
     trainer_config = TrainerConfig(
-        auto_lr_find=True, 
+        auto_lr_find=False, 
         batch_size=128,
         max_epochs=100, 
         early_stopping_patience=10
@@ -68,7 +68,13 @@ def entrainer_et_evaluer(train_df, test_df):
     tabular_model.fit(train_df)
     
     preds_df = tabular_model.predict(test_df)
-    probas = preds_df["1_probability"].values
+    print("Colonnes de preds_df :", preds_df.columns.tolist())  # debug
+    # Cherche la colonne de probabilité de la classe 1 (décès)
+    colonne_proba = next(
+        c for c in preds_df.columns
+        if c.endswith("_1_probability") or c == "1_probability"
+    )
+    probas = preds_df[colonne_proba].values
     y_test = test_df["deces_10_ans"].values
     
     metriques = {
