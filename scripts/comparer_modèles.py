@@ -60,7 +60,11 @@ def predire_tabpfn(X, y):
 def predire_ft_transformer(df_test, y):
     modele = TabularModel.load_model("models/ft_transformer")
     preds = modele.predict(df_test)
-    probas = preds["1_probability"].values
+    colonne_proba = next(
+    c for c in preds.columns
+    if c.endswith("_1_probability") or c == "1_probability"
+    )
+    probas = preds[colonne_proba].values
     return _metriques(probas, y)
 
 def sauvegarder_figure(figure, chemin):
