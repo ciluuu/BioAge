@@ -27,12 +27,21 @@ data/processed/*
 # Modèles entraînés (sauf ceux utilisés par l'app)
 models/*
 !models/.gitkeep
-!models/logistique_age_biomarqueurs.pkl
 !models/mlp.pt
 !models/mlp.pt.stats.npz
+!models/logistique.pkl
+!models/tabpfn.pkl
+!models/ft_transformer/
+!models/ft_transformer/**
 
 # IDE
 .vscode/
 .idea/
 *.swp
 .DS_Store
+
+# pytorch_tabular / lightning temporaires
+.lr_find_*.ckpt
+.pt_tmp/
+lightning_logs/
+saved_models/

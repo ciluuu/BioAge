@@ -73,7 +73,7 @@ def main():
 
     train.to_csv("data/processed/train.csv", index=False)
     test.to_csv("data/processed/test.csv", index=False)
-    print("\n✅ Fichiers sauvegardés dans data/processed/")
+    print("\n Fichiers sauvegardés dans data/processed/")
 
 
 if __name__ == "__main__":

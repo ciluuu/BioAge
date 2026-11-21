@@ -1,11 +1,39 @@
-"""Application Streamlit : formulaire de 9 biomarqueurs, affichage de l'âge biologique."""
+"""Application Streamlit : formulaire de biomarqueurs, estimation de l'age biologique."""
+import numpy as np
 import streamlit as st
 
 from src.biomarqueurs import BIOMARQUEURS
 from src.phenoage import calculer_phenoage
-from src.logistique import predire_logistique
+from src.logistique.logistique import predire_avec_manquants as predire_logistique_manquants
 from src.mlp import charger_modele as charger_modele_mlp
-from src.mlp import predire_pour_une_personne as predire_mlp_personne
+from src.mlp.mlp import predire_avec_manquants as predire_mlp_manquants
+from src.tabpfn.tabpfn import charger_modele_tabpfn, predire_pour_une_personne_tabpfn
+from src.ft_transformer.ft_transformer import charger_modele_ft, predire_avec_manquants_ft
+
+CLES = ["albumine", "creatinine", "glucose", "crp",
+        "lymphocytes", "vgm", "idr", "pal", "leucocytes"]
+
+
+def preparer_entree(sexe, saisies):
+    """Prepare les entrees communes aux modeles ML/DL.
+
+    Renvoie :
+    - est_femme : 1.0 (femme), 0.0 (homme), 0.5 (non precise)
+    - presents  : liste de 9 booleens (True si le biomarqueur est renseigne)
+    - valeurs_9 : les 9 valeurs (CRP en log1p ; 0.0 si manquant)
+    """
+    est_femme = 1.0 if sexe == "Femme" else (0.0 if sexe == "Homme" else 0.5)
+    presents = [saisies[cle] is not None for cle in CLES]
+    valeurs_9 = []
+    for cle in CLES:
+        valeur = saisies[cle]
+        if valeur is None:
+            valeurs_9.append(0.0)
+        elif cle == "crp":
+            valeurs_9.append(np.log1p(valeur))
+        else:
+            valeurs_9.append(valeur)
+    return est_femme, presents, valeurs_9
 
 
 st.title("BioAge - Estimation de l'âge biologique")
@@ -17,12 +45,17 @@ modele_choisi = st.radio(
         "PhenoAge (formule)",
         "Regression logistique (ML)",
         "MLP (deep learning)",
+        "TabPFN",
+        "FT-Transformer",
     ],
     horizontal=True,
     help="PhenoAge : formule de reference. "
          "Logistique : baseline ML. "
-         "MLP : deep learning, meilleure calibration.",
+         "MLP : deep learning, bonne calibration. "
+         "TabPFN : modele pre-entraine. "
+         "FT-Transformer : modele de type transformer.",
 )
+
 # Formulaire
 with st.form("formulaire"):
     age = st.number_input("Âge (années)", min_value=0, max_value=120, value=None)
@@ -41,19 +74,13 @@ with st.form("formulaire"):
 
         aides = []
         if bio.get("plage_min") is not None and bio.get("plage_max") is not None:
-            aides.append(
-                f"Plage normale : {bio['plage_min']} - {bio['plage_max']} {bio['unite']}"
-            )
+            aides.append(f"Plage normale : {bio['plage_min']} - {bio['plage_max']} {bio['unite']}")
         if bio.get("plage_min_femme") is not None and bio.get("plage_max_femme") is not None:
-            aides.append(
-                f"Plage normale pour les femmes : "
-                f"{bio['plage_min_femme']} - {bio['plage_max_femme']} {bio['unite']}"
-            )
+            aides.append(f"Plage normale pour les femmes : "
+                         f"{bio['plage_min_femme']} - {bio['plage_max_femme']} {bio['unite']}")
         if bio.get("plage_min_homme") is not None and bio.get("plage_max_homme") is not None:
-            aides.append(
-                f"Plage normale pour les hommes : "
-                f"{bio['plage_min_homme']} - {bio['plage_max_homme']} {bio['unite']}"
-            )
+            aides.append(f"\nPlage normale pour les hommes : "
+                         f"{bio['plage_min_homme']} - {bio['plage_max_homme']} {bio['unite']}")
         help_text = "\n".join(aides)
 
         saisies[bio["cle"]] = colonne.number_input(
@@ -74,10 +101,13 @@ if envoye:
 
     if age is None:
         st.error("Veuillez renseigner votre âge.")
-    elif manquants and not modele_choisi.startswith("MLP"):
-        st.error("Ce modele ne gere pas les biomarqueurs manquants : " + ", ".join(manquants))
-        st.info("Le MLP, lui, accepte les valeurs manquantes. Essayez-le.")
+    elif manquants and modele_choisi.startswith("PhenoAge"):
+        st.error("PhenoAge (formule) nécessite tous les biomarqueurs : " + ", ".join(manquants))
+        st.info("Les modèles ML/DL (Logistique, MLP, TabPFN, FT-Transformer) acceptent les valeurs manquantes.")
     else:
+        est_femme, presents, valeurs_9 = preparer_entree(sexe, saisies)
+        valeurs_11 = np.array([age, est_femme] + valeurs_9, dtype=np.float32)
+
         if modele_choisi.startswith("PhenoAge"):
             age_biologique, risque = calculer_phenoage(
                 age=age,
@@ -92,43 +122,20 @@ if envoye:
                 leucocytes=saisies["leucocytes"],
             )
         elif modele_choisi.startswith("Regression"):
-            age_biologique, risque = predire_logistique(
-                age=age,
-                albumine=saisies["albumine"],
-                creatinine=saisies["creatinine"],
-                glucose=saisies["glucose"],
-                crp_mg_L=saisies["crp"],
-                lymphocytes_pct=saisies["lymphocytes"],
-                vgm=saisies["vgm"],
-                idr=saisies["idr"],
-                pal=saisies["pal"],
-                leucocytes=saisies["leucocytes"],
+            age_biologique, risque = predire_logistique_manquants(valeurs_11, presents)
+        elif modele_choisi.startswith("MLP"):
+            age_biologique, risque = predire_mlp_manquants(charger_modele_mlp(), valeurs_11, presents)
+        elif modele_choisi.startswith("TabPFN"):
+            # TabPFN gere les NaN nativement : on remet les manquants a NaN
+            valeurs_tabpfn = [v if present else np.nan for v, present in zip(valeurs_9, presents)]
+            X_entree = np.array([age, est_femme] + valeurs_tabpfn, dtype=np.float32)
+            age_biologique, risque = predire_pour_une_personne_tabpfn(charger_modele_tabpfn(), X_entree)
+        else:  # FT-Transformer
+            age_biologique, risque = predire_avec_manquants_ft(
+                charger_modele_ft(), age, est_femme, valeurs_9, presents
             )
-        else:  # MLP (avec gestion des manquants)
-            import numpy as np
-            from src.mlp import predire_avec_manquants
 
-            # Encodage du sexe : Femme=1, Homme=0, Non precise=0.5 (valeur moyenne)
-            if sexe == "Femme":
-                est_femme = 1.0
-            elif sexe == "Homme":
-                est_femme = 0.0
-            else:
-                est_femme = 0.5
-
-            donnees_mlp = charger_modele_mlp()
-            cles = ["albumine", "creatinine", "glucose", "crp",
-                    "lymphocytes", "vgm", "idr", "pal", "leucocytes"]
-            presents_9 = [saisies[cle] is not None for cle in cles]
-            valeurs_biomarqueurs = [
-                np.log1p(saisies[cle]) if cle == "crp" and saisies[cle] is not None
-                else (saisies[cle] if saisies[cle] is not None else 0.0)
-                for cle in cles
-            ]
-            valeurs = np.array([age, est_femme] + valeurs_biomarqueurs, dtype=np.float32)
-            age_biologique, risque = predire_avec_manquants(donnees_mlp, valeurs, presents_9)
-
-        nb_present = sum(1 for bio in BIOMARQUEURS if saisies[bio["cle"]] is not None)
+        nb_present = sum(presents)
         colonne_1, colonne_2, colonne_3, colonne_4 = st.columns(4)
         colonne_1.metric("Âge biologique", f"{age_biologique:.1f} ans")
         colonne_2.metric("Écart avec l'âge réel", f"{age_biologique - age:+.1f} ans")
