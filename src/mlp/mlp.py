@@ -45,7 +45,7 @@ def standardiser(X_reference, X_a_transformer):
     return (X_a_transformer - moyennes) / ecarts_types, moyennes, ecarts_types
 
 
-def masquer_aleatoire(X, taux_max=3, graine=None):
+def masquer_aleatoire(X, taux_max=7, graine=None):
     """Masque aleatoirement 0 a taux_max biomarqueurs par ligne.
 
     L'age (col 0) et le sexe (col 1) ne sont jamais masques.
