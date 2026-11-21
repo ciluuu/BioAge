@@ -6,7 +6,7 @@ import numpy as np
 import pandas as pd
 from sklearn.metrics import roc_auc_score, brier_score_loss
 
-sys.path.insert(0, str(Path(__file__).parent.parent))
+sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 from src.evaluation import ece
 from src.mlp import ajouter_masque_complet, charger_modele, predire_probas
 from src.visualisation import (
